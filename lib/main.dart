@@ -1,9 +1,14 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/page_email.dart';
-import 'package:flutter_application_1/page_geo.dart';
+import 'package:flutter_application_1/config/get_it.dart';
+import 'package:flutter_application_1/model.dart/products_model.dart';
+import 'package:flutter_application_1/model.dart/user_model.dart';
+import 'package:flutter_application_1/servics/get_data.dart';
+import 'package:flutter_application_1/servics/post_login.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  setup();
   runApp(MyApp());
 }
 
@@ -13,49 +18,88 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: main_page(),
-      theme: ThemeData(
-        useMaterial3: true,
-      ),
+      home: (config.get<SharedPreferences>().getString('token') == null)
+          ? LogIn()
+          : HomePage(),
     );
   }
 }
 
-class main_page extends StatefulWidget {
-  const main_page({super.key});
+class HomePage extends StatelessWidget {
+  const HomePage({super.key});
 
-  @override
-  State<main_page> createState() => _main_page();
-}
-
-class _main_page extends State<main_page> {
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Center(child: Text("Dio")),
-          bottom: TabBar(tabs: [
-            Tab(
-              text: 'Email',
-              icon: Icon(Icons.email),
-            ),
-            Tab(
-              text: 'GeoLat',
-              icon: Icon(Icons.map),
-            )
-          ]),
-        ),
-        body: TabBarView(children: [email(), geo_lat()]),
-      ),
+    return Scaffold(
+      body: FutureBuilder(
+          future: getData(),
+          builder: (context, snapshot) {
+            if (snapshot.hasData) {
+              dynamic temp = snapshot.data;
+              ProductModel result = ProductModel.fromMap(temp);
+              return ListTile(
+                title: Text(result.title),
+                subtitle: Text(result.description),
+                trailing: Text(result.brand),
+              );
+            } else {
+              return Center(
+                child: LinearProgressIndicator(),
+              );
+            }
+          }),
     );
   }
 }
 
-get_data() async {
-  Dio restfull = Dio();
-  Response response =
-      await restfull.get('https://jsonplaceholder.typicode.com/users');
-  return response.data;
+class LogIn extends StatelessWidget {
+  const LogIn({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    TextEditingController email = TextEditingController();
+    TextEditingController password = TextEditingController();
+    return Scaffold(
+      body: Center(
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Text(
+              "Login",
+              style: TextStyle(fontSize: 20),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: TextField(
+              decoration: InputDecoration(
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(40)),
+                  labelText: 'UserName'),
+              controller: email,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: TextField(
+              decoration: InputDecoration(
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(40)),
+                  labelText: 'Password'),
+              controller: password,
+            ),
+          ),
+          ElevatedButton(
+              onPressed: () async {
+                await Login(
+                    UserModel(username: email.text, password: password.text));
+                  await  Navigator.push(context,MaterialPageRoute(builder: (context)=>HomePage()));
+              },
+              child: Center(
+                child: Text('Login'),
+              ))
+        ]),
+      ),
+    );
+  }
 }
